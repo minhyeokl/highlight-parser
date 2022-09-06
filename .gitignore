@@ -1,2 +1,5 @@
 .*
 !.gitignore
+
+*.csv
+*.pdf
