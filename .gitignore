@@ -1,5 +1,9 @@
 .*
 !.gitignore
+dist
+build
+__pycache__
 
 *.csv
 *.pdf
+*.spec
