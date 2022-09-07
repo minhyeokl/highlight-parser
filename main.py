@@ -45,7 +45,7 @@ def extract_highlight(filepath: str) -> List:
 
 if __name__ == "__main__":
     highlights = extract_highlight("input.pdf")
-    with open('output.csv', 'w', encoding='UTF8', newline='') as f:
+    with open('output.csv', 'w', encoding='utf-8', newline='') as f:
         fieldnames = ['term', 'page']
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
