@@ -1,3 +1,5 @@
+import os
+import sys
 import xlsxwriter
 import fitz  # PyMuPDF
 
@@ -45,14 +47,22 @@ def export_memos_to_xlsx(memos, output_file):
 
     workbook.close()
 
-def main():
-    file_path = 'index.pdf'
-    memos = extract_memos_from_pdf(file_path)
+def main(input_file_path, output_file_path):
+    memos = extract_memos_from_pdf(input_file_path)
     memos.sort(key=lambda x: x['text'])
     print(f"Total memos: {len(memos)}")
     merged_memos = merge_duplicates(memos)
-    export_memos_to_xlsx(merged_memos, 'output.xlsx')
+    export_memos_to_xlsx(merged_memos, output_file_path)
 
 
 if __name__ == "__main__":
-    main()
+    if getattr(sys, 'frozen', False):
+        # PyInstaller로 패키징된 실행 파일인 경우
+        current_folder = os.path.dirname(sys.executable)
+    else:
+        # 일반적인 파이썬 스크립트인 경우
+        current_folder = os.path.dirname(os.path.abspath(__file__))
+    
+    input_file_path = os.path.join(current_folder, 'index.pdf')
+    output_file_path = os.path.join(current_folder, 'output.xlsx')
+    main(input_file_path, output_file_path)
