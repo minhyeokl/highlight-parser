@@ -1,52 +1,58 @@
-from typing import List, Tuple
-import fitz 
-import csv
+import xlsxwriter
+import fitz  # PyMuPDF
 
-def _parse_highlight(annot: fitz.Annot, wordlist: List[Tuple[float, float, float, float, str, int, int, int]]) -> str:
-    points = annot.vertices
-    quad_count = int(len(points) / 4)
-    sentences = []
-    for i in range(quad_count):
-        # where the highlighted part is
-        r = fitz.Quad(points[i * 4 : i * 4 + 4]).rect
+def extract_memos_from_pdf(file_path):
+    doc = fitz.open(file_path)
+    memos = []
 
-        words = [w for w in wordlist if fitz.Rect(w[:4]).intersects(r)]
-        sentences.append(" ".join(w[4] for w in words))
-    sentence = " ".join(sentences)
-    return sentence
+    for page_num in range(len(doc)):
+        page = doc.load_page(page_num)
+        annotations = page.annots()
 
+        if annotations:
+            for annot in annotations:
+                if annot.type[0] == 8:  # 8 is the type for highlight annotations in PyMuPDF
+                    memos.append({'text': annot.info['content'], 'page': page_num + 1})
+    
+    return memos
 
-def handle_page(page):
-    wordlist = page.get_text("words")  # list of words on page
-    wordlist.sort(key=lambda w: (w[3], w[0]))  # ascending y, then x
+def merge_duplicates(memos):
+    memo_dict = {}
+    for memo in memos:
+        text = memo['text']
+        page = memo['page']
+        if text in memo_dict:
+            memo_dict[text]['page'].append(page)
+        else:
+            memo_dict[text] = {'text': text, 'page': [page]}
+    
+    return list(memo_dict.values())
 
-    highlights = []
-    annot = page.first_annot
-    while annot:
-        if annot.type[0] == 8:
-            highlights.append(_parse_highlight(annot, wordlist))
-        annot = annot.next
-    return highlights
+def export_memos_to_xlsx(memos, output_file):
+    workbook = xlsxwriter.Workbook(output_file)
+    worksheet = workbook.add_worksheet()
 
+    # Write headers
+    worksheet.write(0, 0, 'Text')
+    worksheet.write(0, 1, 'Page')
 
-def extract_highlight(filepath: str) -> List:
-    doc = fitz.open(filepath)
+    row = 1
+    for memo in memos:
+        worksheet.write(row, 0, memo['text'])
+        for col, page in enumerate(memo['page'], start=1):
+            worksheet.write(row, col, page)
+        row += 1
 
-    highlights = []
-    for page in doc:
-        terms = handle_page(page)
-        if terms:
-            for term in terms:
-                item = {'term':term, 'page':page.number+1}
-                highlights.append(item)
+    workbook.close()
 
-    return highlights
+def main():
+    file_path = 'index.pdf'
+    memos = extract_memos_from_pdf(file_path)
+    memos.sort(key=lambda x: x['text'])
+    print(f"Total memos: {len(memos)}")
+    merged_memos = merge_duplicates(memos)
+    export_memos_to_xlsx(merged_memos, 'output.xlsx')
 
 
 if __name__ == "__main__":
-    highlights = extract_highlight("input.pdf")
-    with open('output.csv', 'w', encoding='utf-8-sig', newline='') as f:
-        fieldnames = ['term', 'page']
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(highlights)
+    main()
